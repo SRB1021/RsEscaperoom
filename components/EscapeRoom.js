@@ -99,7 +99,7 @@ export default function EscapeRoom() {
               ))}
             </div>
           )}
-          <div style={controlsHintStyle}>WASD move · mouse look · E interact · Esc release</div>
+          <div style={controlsHintStyle}>WASD / Arrows move · mouse look · E interact · Esc release</div>
         </>
       )}
 
@@ -122,7 +122,7 @@ export default function EscapeRoom() {
             ))}
           </div>
           <ul style={legendStyle}>
-            <li><b>WASD</b> — move</li>
+            <li><b>WASD</b> or <b>Arrow keys</b> — move</li>
             <li><b>Mouse</b> — look around</li>
             <li><b>E</b> — interact with what you're looking at</li>
             <li><b>Esc</b> — release the cursor</li>

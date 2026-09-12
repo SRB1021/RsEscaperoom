@@ -25,6 +25,7 @@ export default function EscapeRoom() {
   const [note, setNote] = useState({ open: false, lines: [] });
   const [keypad, setKeypad] = useState({ open: false, digits: "", shake: false });
   const [win, setWin] = useState(null);
+  const [stage, setStage] = useState({ index: 0, total: 1, label: "" });
 
   useEffect(() => {
     if (!theme || !mountRef.current) return;
@@ -46,6 +47,7 @@ export default function EscapeRoom() {
       },
       onInventory: setInventory,
       onWin: (seconds) => setWin(seconds),
+      onStage: (index, total, label) => setStage({ index, total, label }),
     });
     engineRef.current = engine;
     engine.start();
@@ -67,6 +69,7 @@ export default function EscapeRoom() {
     setInventory([]);
     setStarted(false);
     setTheme(null);
+    setStage({ index: 0, total: 1, label: "" });
   }, []);
 
   const showResumeOverlay = started && !locked && !note.open && !keypad.open && !win;
@@ -89,6 +92,11 @@ export default function EscapeRoom() {
       {locked && !win && (
         <>
           <div style={crosshairStyle} />
+          {stage.total > 1 && (
+            <div style={stageBadgeStyle}>
+              {stage.label} · Room {stage.index + 1} of {stage.total}
+            </div>
+          )}
           {prompt && <div style={promptStyle}>{prompt}</div>}
           {inventory.length > 0 && (
             <div style={inventoryStyle}>
@@ -134,6 +142,9 @@ export default function EscapeRoom() {
         <Overlay>
           <h1 style={titleStyle}>{theme.name.toUpperCase()}</h1>
           <p style={subtitleStyle}>{theme.tagline}</p>
+          <p style={{ ...subtitleStyle, marginTop: -16, fontSize: 13, color: "#8a8478" }}>
+            {theme.stageLabels.length} rooms to get through, each with its own lock.
+          </p>
           <button style={buttonStyle} onClick={handleEnter}>
             Click to step inside
           </button>
@@ -198,7 +209,7 @@ export default function EscapeRoom() {
       {win && (
         <Overlay>
           <h1 style={titleStyle}>YOU ESCAPED</h1>
-          <p style={subtitleStyle}>Time: {formatTime(win)}</p>
+          <p style={subtitleStyle}>Total time: {formatTime(win)}</p>
           <button style={buttonStyle} onClick={handleRestart}>
             Choose another room
           </button>
@@ -253,6 +264,20 @@ const crosshairStyle = {
   borderRadius: "50%",
   background: "rgba(255,255,255,0.85)",
   boxShadow: "0 0 4px rgba(0,0,0,0.6)",
+  pointerEvents: "none",
+};
+
+const stageBadgeStyle = {
+  position: "absolute",
+  top: 18,
+  left: "50%",
+  transform: "translateX(-50%)",
+  color: "#eee8de",
+  background: "rgba(0,0,0,0.5)",
+  padding: "6px 16px",
+  borderRadius: 20,
+  fontSize: 13,
+  letterSpacing: 0.5,
   pointerEvents: "none",
 };
 

@@ -11,23 +11,27 @@ Audio API, so the game starts instantly and works offline once loaded.
 
 ## Rooms
 
-Pick one from the menu — each has its own look, props, and ending, but the
-same puzzle shape: find a note, spot the year it points to, crack a hidden
-lockbox, grab the key, get out.
+Pick a theme from the menu — each is a sequence of **3 rooms**, not just
+one. Every room has its own year-code split across two clues (a plaque
+near the desk, a stenciled tag on the crate across the room), its own
+hidden lockbox and key, and its own door — clearing one drops you into
+the next with a fresh code, so solving the whole theme means doing the
+puzzle three times over.
 
-- **Runaway Train** — the last car of a train nobody's driving, complete
+- **Runaway Train** (Cars 7 → 9) — a train nobody's driving, complete
   with a subtle rail-motion camera shake and wheel clack.
-- **Abandoned Mine Shaft** — a sealed shaft lit mostly by the lantern
-  clipped to your own helmet, which follows wherever you look.
-- **Self-Destruct Submarine** — flashing red emergency lighting and a
-  periodic klaxon while you race to the escape hatch.
-- **Medieval Castle Escape** — a torch-lit keep with a portcullis standing
-  between you and the outside.
+- **Abandoned Mine Shaft** (Levels 1 → 3) — a sealed shaft lit mostly by
+  the lantern clipped to your own helmet, which follows wherever you look.
+- **Self-Destruct Submarine** (Compartments 1 → 3) — flashing red
+  emergency lighting and a periodic klaxon while you race to the escape
+  hatch.
+- **Medieval Castle Escape** (Outer → Middle → Vault Chamber) — a
+  torch-lit keep with a portcullis standing between you and the outside.
 
 ## Play
 
 - **Mouse** — look around
-- **WASD** — move
+- **WASD** or **Arrow keys** — move
 - **E** — interact with whatever's under the crosshair
 - **Esc** — release the cursor (click the screen to grab it again)
 
@@ -65,10 +69,13 @@ provides, so no extra config is needed.
 - `lib/gameEngine.js` — the Three.js scene, first-person controls,
   collision, raycast-based interaction, and puzzle state, wrapped in a
   plain class so it's framework-agnostic. Takes a theme object and builds
-  the room from it.
-- `lib/themes.js` — the four room definitions: textures, colors, prop
-  labels, note/plaque text, the year-code, and an `ambiance` flag (shake,
-  headlamp, alarm, torches) the engine uses for per-room effects.
+  each room (stage) from it; unlocking a non-final door tears down and
+  rebuilds the stage-specific props (desk/crate/painting/safe/door) with
+  the next code while keeping the room shell, camera, and lighting.
+- `lib/themes.js` — the four theme definitions: textures, colors, prop
+  labels, note/plaque text, a `codes` array (one 4-digit code per room),
+  `stageLabels`, and an `ambiance` flag (shake, headlamp, alarm, torches)
+  the engine uses for per-theme effects.
 - `lib/textures.js` — procedural canvas textures (floor, walls, notes,
   plaques, the safe's dial, etc.), parametrized by theme color.
 - `lib/audio.js` — procedural sound effects (footsteps, clicks, unlocks,

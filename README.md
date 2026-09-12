@@ -1,7 +1,7 @@
 # Vantage Point — Online Escape Room
 
 A first-person escape room that runs entirely in the browser. Nowhere you
-actually are — but between the mouse-look, footsteps, flickering desk lamp,
+actually are — but between the mouse-look, footsteps, flickering lights,
 and a locked door standing between you and the exit, it's built to feel like
 you're really standing in the room.
 
@@ -9,15 +9,27 @@ No native app, no downloads, no external assets: every texture is drawn on
 a `<canvas>` at load time and every sound effect is synthesized with the Web
 Audio API, so the game starts instantly and works offline once loaded.
 
+## Rooms
+
+Pick one from the menu — each has its own look, props, and ending, but the
+same puzzle shape: find a note, spot the year it points to, crack a hidden
+lockbox, grab the key, get out.
+
+- **Runaway Train** — the last car of a train nobody's driving, complete
+  with a subtle rail-motion camera shake and wheel clack.
+- **Abandoned Mine Shaft** — a sealed shaft lit mostly by the lantern
+  clipped to your own helmet, which follows wherever you look.
+- **Self-Destruct Submarine** — flashing red emergency lighting and a
+  periodic klaxon while you race to the escape hatch.
+- **Medieval Castle Escape** — a torch-lit keep with a portcullis standing
+  between you and the outside.
+
 ## Play
 
 - **Mouse** — look around
 - **WASD** — move
 - **E** — interact with whatever's under the crosshair
 - **Esc** — release the cursor (click the screen to grab it again)
-
-You wake up in a locked study. Read the note, find the clue, crack the
-safe, and get out.
 
 ## Run locally
 
@@ -52,10 +64,15 @@ provides, so no extra config is needed.
 
 - `lib/gameEngine.js` — the Three.js scene, first-person controls,
   collision, raycast-based interaction, and puzzle state, wrapped in a
-  plain class so it's framework-agnostic.
-- `lib/textures.js` — procedural canvas textures (floor, walls, books,
-  notes, the safe's dial, etc.).
+  plain class so it's framework-agnostic. Takes a theme object and builds
+  the room from it.
+- `lib/themes.js` — the four room definitions: textures, colors, prop
+  labels, note/plaque text, the year-code, and an `ambiance` flag (shake,
+  headlamp, alarm, torches) the engine uses for per-room effects.
+- `lib/textures.js` — procedural canvas textures (floor, walls, notes,
+  plaques, the safe's dial, etc.), parametrized by theme color.
 - `lib/audio.js` — procedural sound effects (footsteps, clicks, unlocks,
-  an ambient room tone) via the Web Audio API.
-- `components/EscapeRoom.js` — the React shell: mounts the engine, renders
-  the HUD (crosshair, prompts, inventory, note/keypad modals, win screen).
+  a klaxon, rail clacks, an ambient room tone) via the Web Audio API.
+- `components/EscapeRoom.js` — the React shell: room-picker menu, mounts
+  the engine, renders the HUD (crosshair, prompts, inventory, note/keypad
+  modals, win screen).

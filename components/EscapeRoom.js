@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { EscapeRoomGame } from "../lib/gameEngine";
+import { THEMES } from "../lib/themes";
 
 function formatTime(totalSeconds) {
   const s = Math.floor(totalSeconds);
@@ -15,6 +16,7 @@ export default function EscapeRoom() {
   const engineRef = useRef(null);
   const toastTimer = useRef(null);
 
+  const [theme, setTheme] = useState(null);
   const [started, setStarted] = useState(false);
   const [locked, setLocked] = useState(false);
   const [prompt, setPrompt] = useState(null);
@@ -25,7 +27,9 @@ export default function EscapeRoom() {
   const [win, setWin] = useState(null);
 
   useEffect(() => {
-    const engine = new EscapeRoomGame(mountRef.current, {
+    if (!theme || !mountRef.current) return;
+
+    const engine = new EscapeRoomGame(mountRef.current, theme, {
       onLockChange: setLocked,
       onPrompt: setPrompt,
       onToast: (text) => {
@@ -49,29 +53,38 @@ export default function EscapeRoom() {
     return () => {
       clearTimeout(toastTimer.current);
       engine.dispose();
+      engineRef.current = null;
     };
-  }, []);
+  }, [theme]);
 
   const handleEnter = useCallback(() => {
     setStarted(true);
     engineRef.current?.lock();
   }, []);
 
+  const handleRestart = useCallback(() => {
+    setWin(null);
+    setInventory([]);
+    setStarted(false);
+    setTheme(null);
+  }, []);
+
   const showResumeOverlay = started && !locked && !note.open && !keypad.open && !win;
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden", background: "#000", fontFamily: "system-ui, sans-serif" }}>
-      <div ref={mountRef} style={{ position: "absolute", inset: 0 }} />
+      {theme && <div ref={mountRef} style={{ position: "absolute", inset: 0 }} />}
 
-      {/* vignette */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          pointerEvents: "none",
-          background: "radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.55) 100%)",
-        }}
-      />
+      {theme && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            background: "radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.55) 100%)",
+          }}
+        />
+      )}
 
       {locked && !win && (
         <>
@@ -92,22 +105,41 @@ export default function EscapeRoom() {
 
       {toast && <div style={toastStyle}>{toast}</div>}
 
-      {!started && (
-        <Overlay>
+      {!theme && (
+        <Overlay wide>
           <h1 style={titleStyle}>VANTAGE POINT</h1>
           <p style={subtitleStyle}>
             An online escape room. Nowhere you actually are — but for the next
-            few minutes, it'll feel like you're standing right in it.
+            few minutes, it'll feel like you're standing right in it. Pick a
+            room to begin.
           </p>
-          <button style={buttonStyle} onClick={handleEnter}>
-            Click to step inside
-          </button>
+          <div style={themeGridStyle}>
+            {THEMES.map((t) => (
+              <button key={t.id} style={themeCardStyle} onClick={() => setTheme(t)}>
+                <div style={themeCardTitleStyle}>{t.name}</div>
+                <div style={themeCardTaglineStyle}>{t.tagline}</div>
+              </button>
+            ))}
+          </div>
           <ul style={legendStyle}>
             <li><b>WASD</b> — move</li>
             <li><b>Mouse</b> — look around</li>
             <li><b>E</b> — interact with what you're looking at</li>
             <li><b>Esc</b> — release the cursor</li>
           </ul>
+        </Overlay>
+      )}
+
+      {theme && !started && (
+        <Overlay>
+          <h1 style={titleStyle}>{theme.name.toUpperCase()}</h1>
+          <p style={subtitleStyle}>{theme.tagline}</p>
+          <button style={buttonStyle} onClick={handleEnter}>
+            Click to step inside
+          </button>
+          <button style={linkButtonStyle} onClick={() => setTheme(null)}>
+            ← Choose a different room
+          </button>
         </Overlay>
       )}
 
@@ -167,8 +199,8 @@ export default function EscapeRoom() {
         <Overlay>
           <h1 style={titleStyle}>YOU ESCAPED</h1>
           <p style={subtitleStyle}>Time: {formatTime(win)}</p>
-          <button style={buttonStyle} onClick={() => window.location.reload()}>
-            Play again
+          <button style={buttonStyle} onClick={handleRestart}>
+            Choose another room
           </button>
         </Overlay>
       )}
@@ -186,7 +218,7 @@ export default function EscapeRoom() {
   );
 }
 
-function Overlay({ children, onClick, dim }) {
+function Overlay({ children, onClick, dim, wide }) {
   return (
     <div
       onClick={onClick}
@@ -202,9 +234,10 @@ function Overlay({ children, onClick, dim }) {
         textAlign: "center",
         cursor: onClick ? "pointer" : "default",
         padding: 24,
+        overflowY: "auto",
       }}
     >
-      {children}
+      <div style={{ maxWidth: wide ? 760 : 480, width: "100%" }}>{children}</div>
     </div>
   );
 }
@@ -276,8 +309,8 @@ const toastStyle = {
 };
 
 const titleStyle = {
-  fontSize: 42,
-  letterSpacing: 6,
+  fontSize: 38,
+  letterSpacing: 4,
   margin: "0 0 12px",
   fontWeight: 700,
 };
@@ -287,6 +320,8 @@ const subtitleStyle = {
   lineHeight: 1.5,
   color: "#bcb4a8",
   marginBottom: 24,
+  marginLeft: "auto",
+  marginRight: "auto",
 };
 
 const buttonStyle = {
@@ -300,6 +335,17 @@ const buttonStyle = {
   cursor: "pointer",
 };
 
+const linkButtonStyle = {
+  display: "block",
+  margin: "18px auto 0",
+  background: "none",
+  border: "none",
+  color: "#8a8478",
+  fontSize: 14,
+  cursor: "pointer",
+  textDecoration: "underline",
+};
+
 const legendStyle = {
   listStyle: "none",
   padding: 0,
@@ -309,12 +355,43 @@ const legendStyle = {
   lineHeight: 2,
 };
 
+const themeGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 14,
+  margin: "0 0 8px",
+};
+
+const themeCardStyle = {
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(202,161,90,0.35)",
+  borderRadius: 10,
+  padding: "18px 16px",
+  color: "#eee8de",
+  textAlign: "left",
+  cursor: "pointer",
+};
+
+const themeCardTitleStyle = {
+  fontSize: 17,
+  fontWeight: 700,
+  color: "#caa15a",
+  marginBottom: 6,
+};
+
+const themeCardTaglineStyle = {
+  fontSize: 13,
+  color: "#a8a094",
+  lineHeight: 1.4,
+};
+
 const paperStyle = {
   background: "#e9dfc0",
   color: "#2b2117",
   padding: "32px 40px",
   borderRadius: 4,
   maxWidth: 420,
+  margin: "0 auto",
   fontFamily: "Georgia, serif",
   fontSize: 18,
   boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
@@ -325,6 +402,8 @@ const keypadPanelStyle = {
   padding: "28px 32px",
   borderRadius: 12,
   border: "1px solid rgba(255,255,255,0.1)",
+  margin: "0 auto",
+  display: "inline-block",
 };
 
 const keypadDisplayStyle = {

@@ -6,22 +6,28 @@ and a locked door standing between you and the exit, it's built to feel like
 you're really standing in the room.
 
 No native app, no downloads, no external assets: every texture is drawn on
-a `<canvas>` at load time and every sound effect is synthesized with the Web
-Audio API, so the game starts instantly and works offline once loaded.
+a `<canvas>` at load time, so the game starts instantly and works offline
+once loaded. Sound effects exist in the code (procedural, via the Web
+Audio API) but are currently disabled — the game plays silently.
 
-Each room is dressed like a physical escape-room build rather than a bare
-box: a practical lantern prop is the actual light source (not a floating
-glow), plus crates, barrels, wall-mounted tools, and hanging chains
-scattered around for clutter and set dressing.
+Each room has both real architecture for its setting (train windows and
+an overhead luggage rail, mine support beams and corner posts, submarine
+portholes and ceiling pipes, a castle archway and arrow-slit windows) and
+physical set dressing: a practical lantern prop as the actual light
+source (not a floating glow), plus crates, barrels, wall-mounted tools,
+and hanging chains.
 
 ## Rooms
 
 Pick a theme from the menu — each is a sequence of **3 rooms**, not just
-one. Every room has its own year-code split across two clues (a plaque
-near the desk, a stenciled tag on the crate across the room), its own
-hidden lockbox and key, and its own door — clearing one drops you into
-the next with a fresh code, so solving the whole theme means doing the
-puzzle three times over.
+one. Every room's puzzle has three parts, not just "read two numbers":
+find a tool hidden elsewhere in the room, use it to force open a crate
+that's otherwise sealed, then combine the number it reveals with a second
+one on a plaque near the desk to crack a hidden lockbox for the key.
+Clearing a door with the key drops you into the next room with a fresh
+code, so solving the whole theme means doing this three times over.
+Press **H** any time for a nudge in the right direction (it won't just
+hand you the answer).
 
 - **Runaway Train** (Cars 7 → 9) — a train nobody's driving, complete
   with a subtle rail-motion camera shake and wheel clack.
@@ -38,6 +44,7 @@ puzzle three times over.
 - **Mouse** — look around
 - **WASD** or **Arrow keys** — move
 - **E** — interact with whatever's under the crosshair
+- **H** — get a hint
 - **Esc** — release the cursor (click the screen to grab it again)
 
 ## Run locally
@@ -74,19 +81,30 @@ provides, so no extra config is needed.
 - `lib/gameEngine.js` — the Three.js scene, first-person controls,
   collision, raycast-based interaction, and puzzle state, wrapped in a
   plain class so it's framework-agnostic. Takes a theme object and builds
-  each room (stage) from it; unlocking a non-final door tears down and
-  rebuilds the stage-specific props (desk/crate/painting/safe/door) with
-  the next code while keeping the room shell, camera, and lighting.
+  the room's fixed architecture once, then each stage's puzzle props
+  (desk/crate/tool/painting/safe/door) into a disposable group that's torn
+  down and rebuilt with a fresh code on every non-final door. Also has
+  `getHint()`, which reads the current puzzle state to nudge toward the
+  next step without giving away the answer.
 - `lib/themes.js` — the four theme definitions: textures, colors, prop
-  labels, note/plaque text, a `codes` array (one 4-digit code per room),
-  `stageLabels`, a `lampPosition` for the practical light prop, a `decor`
-  list (crates/barrels/wall tools/chains) for set dressing, and an
+  labels, note/plaque/tool text, a `codes` array (one 4-digit code per
+  room), `stageLabels`, a `lampPosition` for the practical light prop, a
+  `decor` list (crates/barrels/wall tools/chains) for set dressing, and an
   `ambiance` flag (shake, headlamp, alarm, torches) the engine uses for
   per-theme effects.
 - `lib/textures.js` — procedural canvas textures (floor, walls, notes,
   plaques, the safe's dial, etc.), parametrized by theme color.
-- `lib/audio.js` — procedural sound effects (footsteps, clicks, unlocks,
-  a klaxon, rail clacks, an ambient room tone) via the Web Audio API.
+- `lib/audio.js` — procedural sound effect generators (currently unused —
+  `audio.init()` is never called, so every method's `if (!this.ctx)
+  return;` guard makes it a no-op).
 - `components/EscapeRoom.js` — the React shell: room-picker menu, mounts
-  the engine, renders the HUD (crosshair, prompts, inventory, note/keypad
-  modals, win screen).
+  the engine, renders the HUD (crosshair, prompts, inventory, hint button,
+  note/keypad modals, win screen).
+
+## Performance notes
+
+Rendering uses `MeshLambertMaterial` throughout rather than
+`MeshStandardMaterial` — with several real-time point lights per room,
+full PBR shading was the single biggest GPU cost and caused visible frame
+drops on anything but a high-end GPU. Antialiasing is off and the device
+pixel ratio is capped at 1.5 for the same reason.

@@ -100,14 +100,17 @@ export default function EscapeRoom() {
           {prompt && <div style={promptStyle}>{prompt}</div>}
           {inventory.length > 0 && (
             <div style={inventoryStyle}>
-              {inventory.map((item) => (
-                <div key={item} style={inventoryItemStyle}>
+              {inventory.map((item, i) => (
+                <div key={item + i} style={inventoryItemStyle}>
                   🔑 {item}
                 </div>
               ))}
             </div>
           )}
-          <div style={controlsHintStyle}>WASD / Arrows move · mouse look · E interact · Esc release</div>
+          <button style={hintButtonStyle} onClick={() => engineRef.current?.showHint()}>
+            💡 Hint <span style={{ opacity: 0.6 }}>(H)</span>
+          </button>
+          <div style={controlsHintStyle}>WASD / Arrows move · mouse look · E interact · H hint · Esc release</div>
         </>
       )}
 
@@ -133,6 +136,7 @@ export default function EscapeRoom() {
             <li><b>WASD</b> or <b>Arrow keys</b> — move</li>
             <li><b>Mouse</b> — look around</li>
             <li><b>E</b> — interact with what you're looking at</li>
+            <li><b>H</b> — stuck? get a hint</li>
             <li><b>Esc</b> — release the cursor</li>
           </ul>
         </Overlay>
@@ -310,6 +314,19 @@ const inventoryItemStyle = {
   borderRadius: 8,
   fontSize: 14,
   border: "1px solid rgba(240,215,140,0.4)",
+};
+
+const hintButtonStyle = {
+  position: "absolute",
+  bottom: 46,
+  right: 20,
+  background: "rgba(0,0,0,0.55)",
+  color: "#f0d78c",
+  border: "1px solid rgba(240,215,140,0.4)",
+  padding: "8px 14px",
+  borderRadius: 8,
+  fontSize: 13,
+  cursor: "pointer",
 };
 
 const controlsHintStyle = {

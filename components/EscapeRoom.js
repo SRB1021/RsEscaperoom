@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { EscapeRoomGame } from "../lib/gameEngine";
+import { Network } from "../lib/network";
 import { THEMES } from "../lib/themes";
 
 function formatTime(totalSeconds) {
@@ -14,8 +15,11 @@ function formatTime(totalSeconds) {
 export default function EscapeRoom() {
   const mountRef = useRef(null);
   const engineRef = useRef(null);
+  const networkRef = useRef(null);
+  const pendingSnapshotRef = useRef(null);
   const toastTimer = useRef(null);
 
+  const [menuMode, setMenuMode] = useState("root"); // root | theme | themeHost | join
   const [theme, setTheme] = useState(null);
   const [started, setStarted] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -26,31 +30,45 @@ export default function EscapeRoom() {
   const [keypad, setKeypad] = useState({ open: false, digits: "", shake: false });
   const [win, setWin] = useState(null);
   const [stage, setStage] = useState({ index: 0, total: 1, label: "" });
+  const [lobbyCode, setLobbyCode] = useState(null);
+  const [joinCodeValue, setJoinCodeValue] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState(null);
 
   useEffect(() => {
     if (!theme || !mountRef.current) return;
 
-    const engine = new EscapeRoomGame(mountRef.current, theme, {
-      onLockChange: setLocked,
-      onPrompt: setPrompt,
-      onToast: (text) => {
-        setToast(text);
-        clearTimeout(toastTimer.current);
-        toastTimer.current = setTimeout(() => setToast(null), 2800);
+    const engine = new EscapeRoomGame(
+      mountRef.current,
+      theme,
+      {
+        onLockChange: setLocked,
+        onPrompt: setPrompt,
+        onToast: (text) => {
+          setToast(text);
+          clearTimeout(toastTimer.current);
+          toastTimer.current = setTimeout(() => setToast(null), 2800);
+        },
+        onNote: (open, lines) => setNote({ open, lines: lines || [] }),
+        onKeypad: (open) => setKeypad((k) => ({ ...k, open, shake: false })),
+        onKeypadDigits: (digits) => setKeypad((k) => ({ ...k, digits })),
+        onKeypadShake: () => {
+          setKeypad((k) => ({ ...k, shake: true }));
+          setTimeout(() => setKeypad((k) => ({ ...k, shake: false })), 400);
+        },
+        onInventory: setInventory,
+        onWin: (seconds) => setWin(seconds),
+        onStage: (index, total, label) => setStage({ index, total, label }),
       },
-      onNote: (open, lines) => setNote({ open, lines: lines || [] }),
-      onKeypad: (open) => setKeypad((k) => ({ ...k, open, shake: false })),
-      onKeypadDigits: (digits) => setKeypad((k) => ({ ...k, digits })),
-      onKeypadShake: () => {
-        setKeypad((k) => ({ ...k, shake: true }));
-        setTimeout(() => setKeypad((k) => ({ ...k, shake: false })), 400);
-      },
-      onInventory: setInventory,
-      onWin: (seconds) => setWin(seconds),
-      onStage: (index, total, label) => setStage({ index, total, label }),
-    });
+      networkRef.current
+    );
     engineRef.current = engine;
     engine.start();
+
+    if (pendingSnapshotRef.current) {
+      engine.applyJoinSnapshot(pendingSnapshotRef.current);
+      pendingSnapshotRef.current = null;
+    }
 
     return () => {
       clearTimeout(toastTimer.current);
@@ -64,13 +82,62 @@ export default function EscapeRoom() {
     engineRef.current?.lock();
   }, []);
 
-  const handleRestart = useCallback(() => {
+  const resetToRoot = useCallback(() => {
+    networkRef.current?.disconnect();
+    networkRef.current = null;
+    pendingSnapshotRef.current = null;
     setWin(null);
     setInventory([]);
     setStarted(false);
     setTheme(null);
     setStage({ index: 0, total: 1, label: "" });
+    setLobbyCode(null);
+    setJoinCodeValue("");
+    setConnectError(null);
+    setMenuMode("root");
   }, []);
+
+  const handlePickTheme = useCallback(async (t, asHost) => {
+    if (!asHost) {
+      setTheme(t);
+      return;
+    }
+    setConnecting(true);
+    setConnectError(null);
+    try {
+      const net = new Network();
+      await net.connect();
+      const res = await net.hostRoom(t.id);
+      networkRef.current = net;
+      setLobbyCode(res.code);
+      setTheme(t);
+    } catch (err) {
+      setConnectError(err.message || "Could not host a room.");
+    } finally {
+      setConnecting(false);
+    }
+  }, []);
+
+  const handleJoinSubmit = useCallback(async () => {
+    if (joinCodeValue.trim().length < 4) return;
+    setConnecting(true);
+    setConnectError(null);
+    try {
+      const net = new Network();
+      await net.connect();
+      const res = await net.joinRoom(joinCodeValue.trim());
+      const t = THEMES.find((th) => th.id === res.theme);
+      if (!t) throw new Error("That room's theme isn't recognized.");
+      networkRef.current = net;
+      pendingSnapshotRef.current = res;
+      setLobbyCode(res.code);
+      setTheme(t);
+    } catch (err) {
+      setConnectError(err.message || "Could not join that room.");
+    } finally {
+      setConnecting(false);
+    }
+  }, [joinCodeValue]);
 
   const showResumeOverlay = started && !locked && !note.open && !keypad.open && !win;
 
@@ -92,9 +159,10 @@ export default function EscapeRoom() {
       {locked && !win && (
         <>
           <div style={crosshairStyle} />
-          {stage.total > 1 && (
+          {(stage.total > 1 || lobbyCode) && (
             <div style={stageBadgeStyle}>
-              {stage.label} · Room {stage.index + 1} of {stage.total}
+              {stage.total > 1 ? `${stage.label} · Room ${stage.index + 1} of ${stage.total}` : theme?.name}
+              {lobbyCode ? ` · Code: ${lobbyCode}` : ""}
             </div>
           )}
           {prompt && <div style={promptStyle}>{prompt}</div>}
@@ -116,21 +184,23 @@ export default function EscapeRoom() {
 
       {toast && <div style={toastStyle}>{toast}</div>}
 
-      {!theme && (
+      {!theme && menuMode === "root" && (
         <Overlay wide>
           <h1 style={titleStyle}>VANTAGE POINT</h1>
           <p style={subtitleStyle}>
             An online escape room. Nowhere you actually are — but for the next
-            few minutes, it'll feel like you're standing right in it. Pick a
-            room to begin.
+            few minutes, it'll feel like you're standing right in it.
           </p>
-          <div style={themeGridStyle}>
-            {THEMES.map((t) => (
-              <button key={t.id} style={themeCardStyle} onClick={() => setTheme(t)}>
-                <div style={themeCardTitleStyle}>{t.name}</div>
-                <div style={themeCardTaglineStyle}>{t.tagline}</div>
-              </button>
-            ))}
+          <div style={rootChoiceStyle}>
+            <button style={buttonStyle} onClick={() => setMenuMode("theme")}>
+              Play Solo
+            </button>
+            <button style={buttonStyle} onClick={() => setMenuMode("themeHost")}>
+              Host a Room
+            </button>
+            <button style={buttonStyle} onClick={() => setMenuMode("join")}>
+              Join a Room
+            </button>
           </div>
           <ul style={legendStyle}>
             <li><b>WASD</b> or <b>Arrow keys</b> — move</li>
@@ -142,6 +212,56 @@ export default function EscapeRoom() {
         </Overlay>
       )}
 
+      {!theme && (menuMode === "theme" || menuMode === "themeHost") && (
+        <Overlay wide>
+          <h1 style={titleStyle}>{menuMode === "themeHost" ? "HOST A ROOM" : "PICK A ROOM"}</h1>
+          <p style={subtitleStyle}>
+            {menuMode === "themeHost"
+              ? "Choose a theme — you'll get a code to share once the room is created."
+              : "Each is a sequence of 3 rooms, not just one."}
+          </p>
+          {connectError && <p style={errorTextStyle}>{connectError}</p>}
+          <div style={themeGridStyle}>
+            {THEMES.map((t) => (
+              <button
+                key={t.id}
+                style={themeCardStyle}
+                disabled={connecting}
+                onClick={() => handlePickTheme(t, menuMode === "themeHost")}
+              >
+                <div style={themeCardTitleStyle}>{t.name}</div>
+                <div style={themeCardTaglineStyle}>{t.tagline}</div>
+              </button>
+            ))}
+          </div>
+          <button style={linkButtonStyle} onClick={() => setMenuMode("root")} disabled={connecting}>
+            {connecting ? "Connecting…" : "← Back"}
+          </button>
+        </Overlay>
+      )}
+
+      {!theme && menuMode === "join" && (
+        <Overlay>
+          <h1 style={titleStyle}>JOIN A ROOM</h1>
+          <p style={subtitleStyle}>Enter the code your host shared with you.</p>
+          {connectError && <p style={errorTextStyle}>{connectError}</p>}
+          <input
+            style={codeInputStyle}
+            value={joinCodeValue}
+            maxLength={5}
+            placeholder="ABCDE"
+            onChange={(e) => setJoinCodeValue(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === "Enter" && handleJoinSubmit()}
+          />
+          <button style={buttonStyle} onClick={handleJoinSubmit} disabled={connecting}>
+            {connecting ? "Joining…" : "Join"}
+          </button>
+          <button style={linkButtonStyle} onClick={() => setMenuMode("root")} disabled={connecting}>
+            ← Back
+          </button>
+        </Overlay>
+      )}
+
       {theme && !started && (
         <Overlay>
           <h1 style={titleStyle}>{theme.name.toUpperCase()}</h1>
@@ -149,10 +269,15 @@ export default function EscapeRoom() {
           <p style={{ ...subtitleStyle, marginTop: -16, fontSize: 13, color: "#8a8478" }}>
             {theme.stageLabels.length} rooms to get through, each with its own lock.
           </p>
+          {lobbyCode && (
+            <p style={{ ...subtitleStyle, marginTop: -12, fontSize: 14, color: "#f0d78c" }}>
+              Room code: <b>{lobbyCode}</b> — share it so others can join.
+            </p>
+          )}
           <button style={buttonStyle} onClick={handleEnter}>
             Click to step inside
           </button>
-          <button style={linkButtonStyle} onClick={() => setTheme(null)}>
+          <button style={linkButtonStyle} onClick={resetToRoot}>
             ← Choose a different room
           </button>
         </Overlay>
@@ -214,7 +339,7 @@ export default function EscapeRoom() {
         <Overlay>
           <h1 style={titleStyle}>YOU ESCAPED</h1>
           <p style={subtitleStyle}>Total time: {formatTime(win)}</p>
-          <button style={buttonStyle} onClick={handleRestart}>
+          <button style={buttonStyle} onClick={resetToRoot}>
             Choose another room
           </button>
         </Overlay>
@@ -283,6 +408,7 @@ const stageBadgeStyle = {
   fontSize: 13,
   letterSpacing: 0.5,
   pointerEvents: "none",
+  whiteSpace: "nowrap",
 };
 
 const promptStyle = {
@@ -395,6 +521,35 @@ const legendStyle = {
   color: "#8a8478",
   fontSize: 14,
   lineHeight: 2,
+};
+
+const rootChoiceStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  alignItems: "center",
+};
+
+const errorTextStyle = {
+  color: "#e08a8a",
+  fontSize: 14,
+  marginTop: -14,
+  marginBottom: 18,
+};
+
+const codeInputStyle = {
+  display: "block",
+  margin: "0 auto 18px",
+  width: 180,
+  padding: "12px 16px",
+  fontSize: 22,
+  letterSpacing: 6,
+  textAlign: "center",
+  textTransform: "uppercase",
+  borderRadius: 8,
+  border: "1px solid rgba(202,161,90,0.4)",
+  background: "rgba(255,255,255,0.06)",
+  color: "#eee8de",
 };
 
 const themeGridStyle = {

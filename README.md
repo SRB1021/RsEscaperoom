@@ -47,6 +47,17 @@ hand you the answer).
 - **H** — get a hint
 - **Esc** — release the cursor (click the screen to grab it again)
 
+## Multiplayer
+
+From the front screen, choose **Host a Room** (pick a theme, get a short
+code to share) or **Join a Room** (enter someone else's code). Progress is
+shared co-op — whoever on the team finds the tool, cracks the safe, or
+unlocks a door, everyone sees it and moves on together. Other players
+appear in the room as simple colored capsule-and-sphere avatars (basic
+shapes, not modeled characters) that move and turn in real time. Rooms
+are ephemeral and kept in server memory only — no accounts, no
+persistence, and a room disappears once everyone in it disconnects.
+
 ## Run locally
 
 ```bash
@@ -73,8 +84,14 @@ it with no extra configuration:
    - **Start Command:** `npm start`
    - **Runtime:** Node
 
-`next start` automatically binds to the `PORT` environment variable Render
-provides, so no extra config is needed.
+Multiplayer needs a real, persistent server process to hold WebSocket
+connections and in-memory room state — `next start`'s built-in server has
+nowhere to hang a WebSocket handler, so `npm start`/`npm run dev` now run
+`server.js`, a thin wrapper that serves the normal Next.js app and a `ws`
+WebSocket server (path `/ws`) off the same HTTP server/port. Render's Web
+Services are persistent Node processes that support WebSocket upgrades
+natively, so this needs no extra Render configuration — `server.js`
+already binds to `process.env.PORT`.
 
 ## How it's built
 
@@ -97,9 +114,18 @@ provides, so no extra config is needed.
 - `lib/audio.js` — procedural sound effect generators (currently unused —
   `audio.init()` is never called, so every method's `if (!this.ctx)
   return;` guard makes it a no-op).
-- `components/EscapeRoom.js` — the React shell: room-picker menu, mounts
-  the engine, renders the HUD (crosshair, prompts, inventory, hint button,
-  note/keypad modals, win screen).
+- `components/EscapeRoom.js` — the React shell: the solo/host/join menu
+  flow, mounts the engine, renders the HUD (crosshair, prompts, inventory,
+  hint button, note/keypad modals, win screen).
+- `server.js` — a custom Node server: Next.js's own request handler plus a
+  `ws` WebSocket server on the same port (path `/ws`). Holds rooms in
+  memory only (`code -> { theme, stageIndex, state, players }`); a
+  connecting client either creates a room (`host`) or joins one by code
+  (`join`), then exchanges `move` (position/rotation) and `action`
+  (shared puzzle state changes) messages, relayed to every other player
+  in the same room.
+- `lib/network.js` — a thin client-side WebSocket wrapper the engine uses
+  to send/receive those same messages.
 
 ## Performance notes
 

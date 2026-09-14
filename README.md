@@ -9,6 +9,11 @@ No native app, no downloads, no external assets: every texture is drawn on
 a `<canvas>` at load time and every sound effect is synthesized with the Web
 Audio API, so the game starts instantly and works offline once loaded.
 
+Each room is dressed like a physical escape-room build rather than a bare
+box: a practical lantern prop is the actual light source (not a floating
+glow), plus crates, barrels, wall-mounted tools, and hanging chains
+scattered around for clutter and set dressing.
+
 ## Rooms
 
 Pick a theme from the menu — each is a sequence of **3 rooms**, not just
@@ -74,8 +79,10 @@ provides, so no extra config is needed.
   the next code while keeping the room shell, camera, and lighting.
 - `lib/themes.js` — the four theme definitions: textures, colors, prop
   labels, note/plaque text, a `codes` array (one 4-digit code per room),
-  `stageLabels`, and an `ambiance` flag (shake, headlamp, alarm, torches)
-  the engine uses for per-theme effects.
+  `stageLabels`, a `lampPosition` for the practical light prop, a `decor`
+  list (crates/barrels/wall tools/chains) for set dressing, and an
+  `ambiance` flag (shake, headlamp, alarm, torches) the engine uses for
+  per-theme effects.
 - `lib/textures.js` — procedural canvas textures (floor, walls, notes,
   plaques, the safe's dial, etc.), parametrized by theme color.
 - `lib/audio.js` — procedural sound effects (footsteps, clicks, unlocks,

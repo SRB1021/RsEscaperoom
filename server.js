@@ -19,7 +19,7 @@ const AVATAR_COLORS = ["#e05252", "#52a3e0", "#52e07a", "#e0c752", "#b552e0", "#
 const rooms = new Map();
 
 function freshState() {
-  return { hasTool: false, crateOpened: false, paintingMoved: false, safeOpen: false, hasKey: false };
+  return { hasTool: false, crateOpened: false, hasFuse: false, paintingMoved: false, safeOpen: false, hasKey: false };
 }
 
 function genCode() {

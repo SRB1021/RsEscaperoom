@@ -20,14 +20,17 @@ and hanging chains.
 ## Rooms
 
 Pick a theme from the menu — each is a sequence of **3 rooms**, not just
-one. Every room's puzzle has three parts, not just "read two numbers":
-find a tool hidden elsewhere in the room, use it to force open a crate
-that's otherwise sealed, then combine the number it reveals with a second
-one on a plaque near the desk to crack a hidden lockbox for the key.
-Clearing a door with the key drops you into the next room with a fresh
-code, so solving the whole theme means doing this three times over.
-Press **H** any time for a nudge in the right direction (it won't just
-hand you the answer).
+one, and each room's puzzle has several scattered parts, not just "read
+two numbers": find a tool hidden somewhere in the room and use it to
+force open a crate that's otherwise sealed; separately, find a fuse
+(or battery / power cell / rune stone, depending on the theme) to power
+the safe before it'll even respond; move a painting aside to find that
+safe; combine the crate's number with a second one on a plaque near the
+desk to crack it; take the key inside; use it on the door. Clearing a
+door drops you into the next room with everything reset and a fresh
+code, so solving the whole theme means doing all of this three times
+over. Press **H** any time for a nudge in the right direction (it won't
+just hand you the answer).
 
 - **Runaway Train** (Cars 7 → 9) — a train nobody's driving, complete
   with a subtle rail-motion camera shake and wheel clack.

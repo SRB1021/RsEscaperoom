@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { EscapeRoomGame } from "../lib/gameEngine";
 import { Network } from "../lib/network";
 import { THEMES } from "../lib/themes";
+import { generateRoomPlan } from "../lib/roomPlan";
 
 function formatTime(totalSeconds) {
   const s = Math.floor(totalSeconds);
@@ -17,6 +18,7 @@ export default function EscapeRoom() {
   const engineRef = useRef(null);
   const networkRef = useRef(null);
   const pendingSnapshotRef = useRef(null);
+  const pendingPlanRef = useRef(null);
   const toastTimer = useRef(null);
 
   const [menuMode, setMenuMode] = useState("root"); // root | theme | themeHost | join
@@ -60,7 +62,8 @@ export default function EscapeRoom() {
         onWin: (seconds) => setWin(seconds),
         onStage: (index, total, label) => setStage({ index, total, label }),
       },
-      networkRef.current
+      networkRef.current,
+      pendingPlanRef.current
     );
     engineRef.current = engine;
     engine.start();
@@ -86,6 +89,7 @@ export default function EscapeRoom() {
     networkRef.current?.disconnect();
     networkRef.current = null;
     pendingSnapshotRef.current = null;
+    pendingPlanRef.current = null;
     setWin(null);
     setInventory([]);
     setStarted(false);
@@ -99,6 +103,9 @@ export default function EscapeRoom() {
 
   const handlePickTheme = useCallback(async (t, asHost) => {
     if (!asHost) {
+      // Solo play: generate a fresh randomized layout locally — different
+      // codes, tools, and hiding spots every time, even for the same theme.
+      pendingPlanRef.current = generateRoomPlan(t);
       setTheme(t);
       return;
     }
@@ -107,8 +114,10 @@ export default function EscapeRoom() {
     try {
       const net = new Network();
       await net.connect();
-      const res = await net.hostRoom(t.id);
+      const plan = generateRoomPlan(t);
+      const res = await net.hostRoom(t.id, plan);
       networkRef.current = net;
+      pendingPlanRef.current = plan;
       setLobbyCode(res.code);
       setTheme(t);
     } catch (err) {
@@ -129,6 +138,9 @@ export default function EscapeRoom() {
       const t = THEMES.find((th) => th.id === res.theme);
       if (!t) throw new Error("That room's theme isn't recognized.");
       networkRef.current = net;
+      // Use the host's plan, not a locally-generated one, so every player
+      // in the room sees the identical codes, tools, and hiding spots.
+      pendingPlanRef.current = res.plan;
       pendingSnapshotRef.current = res;
       setLobbyCode(res.code);
       setTheme(t);

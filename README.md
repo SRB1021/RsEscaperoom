@@ -19,18 +19,36 @@ and hanging chains.
 
 ## Rooms
 
-Pick a theme from the menu — each is a sequence of **3 rooms**, not just
-one, and each room's puzzle has several scattered parts, not just "read
-two numbers": find a tool hidden somewhere in the room and use it to
-force open a crate that's otherwise sealed; separately, find a fuse
-(or battery / power cell / rune stone, depending on the theme) to power
-the safe before it'll even respond; move a painting aside to find that
-safe; combine the crate's number with a second one on a plaque near the
-desk to crack it; take the key inside; use it on the door. Clearing a
-door drops you into the next room with everything reset and a fresh
-code, so solving the whole theme means doing all of this three times
-over. Press **H** any time for a nudge in the right direction (it won't
-just hand you the answer).
+Pick a theme from the menu — each is a sequence of **3 real, physically
+connected rooms**. There's no teleporting between them: every room is
+built at once, stacked along one continuous hallway, and a locked door
+between each pair has an actual doorway cut into the wall. While it's
+locked, that gap has a real collider blocking it; once you unlock it, the
+collider is removed and you just walk through — the same way you'd walk
+between rooms in a real escape room.
+
+Each room's puzzle has several scattered, hidden parts, and the chain
+runs a little deeper than "read two numbers": find a tool (a different
+one each room — pry bar, pickaxe, wrench, iron bar, depending on the
+theme) hidden somewhere in the room and use it to force open a crate
+that's otherwise sealed; separately, find a fuse (or battery / power
+cell / rune stone) to power the safe before it'll even respond; move a
+painting aside to find that safe; combine the crate's number with a
+second one on a plaque near the desk to crack the safe's code. Cracking
+the safe doesn't hand you the way out directly, either — it reveals a
+small key that only fits a separate lockbox elsewhere in the room, and
+the *actual* door key is hidden inside that. Your inventory carries over
+between rooms, and it matters: the final room's code is only half
+written down in it — the other half was on a plaque back in the very
+first room, so finishing the theme means remembering (or walking back
+for) something you saw earlier. The middle room of each theme swaps in a
+different kind of puzzle too — instead of reading two numbers back to
+back, you add them together.
+
+Every playthrough reshuffles all of it — which tool/fuse variant shows
+up in which room, where they're hidden, and every code — so replaying
+the same theme is a different puzzle each time. Press **H** any time for
+a nudge in the right direction (it won't just hand you the answer).
 
 - **Runaway Train** (Cars 7 → 9) — a train nobody's driving, complete
   with a subtle rail-motion camera shake and wheel clack.
@@ -100,18 +118,31 @@ already binds to `process.env.PORT`.
 
 - `lib/gameEngine.js` — the Three.js scene, first-person controls,
   collision, raycast-based interaction, and puzzle state, wrapped in a
-  plain class so it's framework-agnostic. Takes a theme object and builds
-  the room's fixed architecture once, then each stage's puzzle props
-  (desk/crate/tool/painting/safe/door) into a disposable group that's torn
-  down and rebuilt with a fresh code on every non-final door. Also has
-  `getHint()`, which reads the current puzzle state to nudge toward the
-  next step without giving away the answer.
+  plain class so it's framework-agnostic. Builds every room in the
+  sequence at once, stacked along one continuous hallway (`ROOM_DEPTH`
+  units apart), with a real doorway — two flanking wall segments plus a
+  door filling the gap — between each pair. A locked door has a physical
+  collider; unlocking it removes that collider, so advancing is real
+  movement, not a scene rebuild. Player inventory persists across the
+  whole game rather than resetting per room. Also has `getHint()`, which
+  reads the current room's puzzle state to nudge toward the next step
+  without giving away the answer.
+- `lib/roomPlan.js` — generates the randomized per-playthrough layout:
+  which tool/fuse variant lands in which room, which of several possible
+  spots hides each one, every room's code, and the cross-room fragment
+  the final room's code needs (logged only in room 0). Called once by
+  whoever starts the game — a solo player, or the host in multiplayer —
+  and the exact same plan is sent to anyone who joins, so everyone in a
+  session sees an identical world; starting a new game reshuffles
+  everything.
 - `lib/themes.js` — the four theme definitions: textures, colors, prop
-  labels, note/plaque/tool text, a `codes` array (one 4-digit code per
-  room), `stageLabels`, a `lampPosition` for the practical light prop, a
-  `decor` list (crates/barrels/wall tools/chains) for set dressing, and an
-  `ambiance` flag (shake, headlamp, alarm, torches) the engine uses for
-  per-theme effects.
+  labels, note/plaque text, `toolVariants`/`fuseVariants` (which
+  pry-bar-equivalent and fuse-equivalent items can show up), `smallKey`/
+  `lockbox` labels for the nested unlock inside each safe, `stageLabels`,
+  a `lampPosition` for the practical light prop, a `decor` list
+  (crates/barrels/wall tools/chains) for set dressing, and an `ambiance`
+  flag (shake, headlamp, alarm, torches) the engine uses for per-theme
+  effects.
 - `lib/textures.js` — procedural canvas textures (floor, walls, notes,
   plaques, the safe's dial, etc.), parametrized by theme color.
 - `lib/audio.js` — procedural sound effect generators (currently unused —
@@ -122,10 +153,14 @@ already binds to `process.env.PORT`.
   hint button, note/keypad modals, win screen).
 - `server.js` — a custom Node server: Next.js's own request handler plus a
   `ws` WebSocket server on the same port (path `/ws`). Holds rooms in
-  memory only (`code -> { theme, stageIndex, state, players }`); a
-  connecting client either creates a room (`host`) or joins one by code
-  (`join`), then exchanges `move` (position/rotation) and `action`
-  (shared puzzle state changes) messages, relayed to every other player
+  memory only (`code -> { theme, plan, roomStates, players }`), where
+  `plan` is the host's randomized layout and `roomStates` is one puzzle
+  state per room; a connecting client either creates a room (`host`,
+  which generates and sends the plan) or joins one by code (`join`,
+  which receives that same plan plus current `roomStates` so it can
+  fast-forward to the team's progress), then exchanges `move`
+  (position/rotation) and `action` (`{roomIndex, kind}` — a puzzle state
+  change in one specific room) messages, relayed to every other player
   in the same room.
 - `lib/network.js` — a thin client-side WebSocket wrapper the engine uses
   to send/receive those same messages.

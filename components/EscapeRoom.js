@@ -31,6 +31,8 @@ export default function EscapeRoom() {
   const [note, setNote] = useState({ open: false, lines: [] });
   const [keypad, setKeypad] = useState({ open: false, digits: "", shake: false });
   const [win, setWin] = useState(null);
+  const [lost, setLost] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(null);
   const [stage, setStage] = useState({ index: 0, total: 1, label: "" });
   const [lobbyCode, setLobbyCode] = useState(null);
   const [joinCodeValue, setJoinCodeValue] = useState("");
@@ -60,6 +62,8 @@ export default function EscapeRoom() {
         },
         onInventory: setInventory,
         onWin: (seconds) => setWin(seconds),
+        onLose: () => setLost(true),
+        onTimeUpdate: setTimeLeft,
         onStage: (index, total, label) => setStage({ index, total, label }),
       },
       networkRef.current,
@@ -85,12 +89,30 @@ export default function EscapeRoom() {
     engineRef.current?.lock();
   }, []);
 
+  // Same theme, freshly randomized — used after a loss. A new object
+  // reference (not the same theme object already in state) is needed to
+  // make the mount effect re-run and rebuild the engine even though the
+  // theme id hasn't changed.
+  const handleRetry = useCallback(() => {
+    if (!theme) return;
+    pendingPlanRef.current = generateRoomPlan(theme);
+    pendingSnapshotRef.current = null;
+    setWin(null);
+    setLost(false);
+    setTimeLeft(null);
+    setInventory([]);
+    setStage({ index: 0, total: 1, label: "" });
+    setTheme({ ...theme });
+  }, [theme]);
+
   const resetToRoot = useCallback(() => {
     networkRef.current?.disconnect();
     networkRef.current = null;
     pendingSnapshotRef.current = null;
     pendingPlanRef.current = null;
     setWin(null);
+    setLost(false);
+    setTimeLeft(null);
     setInventory([]);
     setStarted(false);
     setTheme(null);
@@ -151,7 +173,7 @@ export default function EscapeRoom() {
     }
   }, [joinCodeValue]);
 
-  const showResumeOverlay = started && !locked && !note.open && !keypad.open && !win;
+  const showResumeOverlay = started && !locked && !note.open && !keypad.open && !win && !lost;
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden", background: "#000", fontFamily: "system-ui, sans-serif" }}>
@@ -168,7 +190,7 @@ export default function EscapeRoom() {
         />
       )}
 
-      {locked && !win && (
+      {locked && !win && !lost && (
         <>
           <div style={crosshairStyle} />
           {(stage.total > 1 || lobbyCode) && (
@@ -176,6 +198,9 @@ export default function EscapeRoom() {
               {stage.total > 1 ? `${stage.label} · Room ${stage.index + 1} of ${stage.total}` : theme?.name}
               {lobbyCode ? ` · Code: ${lobbyCode}` : ""}
             </div>
+          )}
+          {timeLeft != null && (
+            <div style={timerStyle(timeLeft <= 60)}>⏱ {formatTime(timeLeft)}</div>
           )}
           {prompt && <div style={promptStyle}>{prompt}</div>}
           {inventory.length > 0 && (
@@ -357,6 +382,23 @@ export default function EscapeRoom() {
         </Overlay>
       )}
 
+      {lost && (
+        <Overlay>
+          <h1 style={{ ...titleStyle, color: "#ff6b5a" }}>TIME'S UP</h1>
+          <p style={subtitleStyle}>You didn't make it out in time.</p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            {!lobbyCode && (
+              <button style={buttonStyle} onClick={handleRetry}>
+                Try again
+              </button>
+            )}
+            <button style={buttonStyle} onClick={resetToRoot}>
+              Choose another room
+            </button>
+          </div>
+        </Overlay>
+      )}
+
       <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
@@ -422,6 +464,21 @@ const stageBadgeStyle = {
   pointerEvents: "none",
   whiteSpace: "nowrap",
 };
+
+const timerStyle = (low) => ({
+  position: "absolute",
+  top: 18,
+  right: 18,
+  color: low ? "#ff6b5a" : "#eee8de",
+  background: "rgba(0,0,0,0.5)",
+  padding: "6px 14px",
+  borderRadius: 20,
+  fontSize: 15,
+  fontWeight: 600,
+  letterSpacing: 0.5,
+  pointerEvents: "none",
+  whiteSpace: "nowrap",
+});
 
 const promptStyle = {
   position: "absolute",

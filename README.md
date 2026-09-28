@@ -34,21 +34,32 @@ theme) hidden somewhere in the room and use it to force open a crate
 that's otherwise sealed; separately, find a fuse (or battery / power
 cell / rune stone) to power the safe before it'll even respond; move a
 painting aside to find that safe; combine the crate's number with a
-second one on a plaque near the desk to crack the safe's code. Cracking
-the safe doesn't hand you the way out directly, either — it reveals a
-small key that only fits a separate lockbox elsewhere in the room, and
-the *actual* door key is hidden inside that. Your inventory carries over
-between rooms, and it matters: the final room's code is only half
-written down in it — the other half was on a plaque back in the very
-first room, so finishing the theme means remembering (or walking back
-for) something you saw earlier. The middle room of each theme swaps in a
-different kind of puzzle too — instead of reading two numbers back to
-back, you add them together.
+second one to crack the safe's code. The codes chain the whole way
+through the game: every room except the last logs a second, separate
+fragment that the *next* room's code needs, so you can't solve a room
+purely with what's in it — you have to remember (or walk back for)
+something from the room before it. The middle room also swaps in a
+different kind of puzzle: instead of reading two numbers back to back,
+you add them together.
 
-Every playthrough reshuffles all of it — which tool/fuse variant shows
-up in which room, where they're hidden, and every code — so replaying
-the same theme is a different puzzle each time. Press **H** any time for
-a nudge in the right direction (it won't just hand you the answer).
+Cracking the safe isn't the last step, either, and it's not always the
+same kind of last step. Some rooms use a nested lockbox: the safe
+reveals a small key that only fits a separate box elsewhere in the
+room, and the *actual* door key is hidden inside that. Other rooms use
+a different mechanic entirely: the safe just clears a mechanical
+socket by the door, and you have to separately find a scattered relic
+(a counterweight, a valve, a loose pin) and physically carry it over to
+fit into that socket. Your inventory carries over between rooms
+regardless of which mechanic you're solving.
+
+Every playthrough reshuffles all of it — which tool/fuse/relic variant
+shows up in which room, where each is hidden, and every code — so
+replaying the same theme is a different puzzle each time. Press **H**
+any time for a nudge toward the next step; it won't spell out the exact
+answer, and it won't repeat the same wording twice in a row, either.
+You've got **15 minutes** on the clock (top right) to get all the way
+out — run out, and it's game over, with the option to try the same
+theme again on a freshly shuffled layout.
 
 - **Runaway Train** (Cars 7 → 9) — a train nobody's driving, complete
   with a subtle rail-motion camera shake and wheel clack.
@@ -124,25 +135,30 @@ already binds to `process.env.PORT`.
   door filling the gap — between each pair. A locked door has a physical
   collider; unlocking it removes that collider, so advancing is real
   movement, not a scene rebuild. Player inventory persists across the
-  whole game rather than resetting per room. Also has `getHint()`, which
-  reads the current room's puzzle state to nudge toward the next step
-  without giving away the answer.
+  whole game rather than resetting per room. Runs a 15-minute countdown
+  from `start()` and calls `onLose()` if it reaches zero before
+  `onWin()` does. `getHint()` picks from a small pool of phrasings for
+  the current puzzle state (never repeating the last one shown) rather
+  than always returning the same fixed line.
 - `lib/roomPlan.js` — generates the randomized per-playthrough layout:
-  which tool/fuse variant lands in which room, which of several possible
-  spots hides each one, every room's code, and the cross-room fragment
-  the final room's code needs (logged only in room 0). Called once by
-  whoever starts the game — a solo player, or the host in multiplayer —
-  and the exact same plan is sent to anyone who joins, so everyone in a
-  session sees an identical world; starting a new game reshuffles
-  everything.
+  which tool/fuse/relic variant lands in which room, which of several
+  possible spots hides each one, each room's `mechanic` (`"lockbox"` or
+  `"socket"` — which kind of final unlock that room uses), every room's
+  code, and the relay fragment each non-final room logs for the next one
+  (a daisy chain the whole length of the game, not just a first-to-last
+  shortcut). Called once by whoever starts the game — a solo player, or
+  the host in multiplayer — and the exact same plan is sent to anyone
+  who joins, so everyone in a session sees an identical world; starting
+  a new game reshuffles everything.
 - `lib/themes.js` — the four theme definitions: textures, colors, prop
-  labels, note/plaque text, `toolVariants`/`fuseVariants` (which
-  pry-bar-equivalent and fuse-equivalent items can show up), `smallKey`/
-  `lockbox` labels for the nested unlock inside each safe, `stageLabels`,
-  a `lampPosition` for the practical light prop, a `decor` list
-  (crates/barrels/wall tools/chains) for set dressing, and an `ambiance`
-  flag (shake, headlamp, alarm, torches) the engine uses for per-theme
-  effects.
+  labels, note/plaque text, `toolVariants`/`fuseVariants`/`relic.variants`
+  (which pry-bar-equivalent, fuse-equivalent, and relic-equivalent items
+  can show up), `smallKey`/`lockbox` labels for the nested-unlock rooms
+  and `relic`'s `socketLabel`/toast text for the find-and-place rooms,
+  `stageLabels`, a `lampPosition` for the practical light prop, a `decor`
+  list (crates/barrels/wall tools/chains) for set dressing, and an
+  `ambiance` flag (shake, headlamp, alarm, torches) the engine uses for
+  per-theme effects.
 - `lib/textures.js` — procedural canvas textures (floor, walls, notes,
   plaques, the safe's dial, etc.), parametrized by theme color.
 - `lib/audio.js` — procedural sound effect generators (currently unused —

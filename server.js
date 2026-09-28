@@ -35,6 +35,7 @@ function freshRoomState() {
     safeOpen: false,
     hasSmallKey: false,
     lockboxOpen: false,
+    hasRelic: false,
     hasKey: false,
     doorOpen: false,
   };

@@ -42,15 +42,19 @@ something from the room before it. The middle room also swaps in a
 different kind of puzzle: instead of reading two numbers back to back,
 you add them together.
 
-Cracking the safe isn't the last step, either, and it's not always the
-same kind of last step. Some rooms use a nested lockbox: the safe
-reveals a small key that only fits a separate box elsewhere in the
-room, and the *actual* door key is hidden inside that. Other rooms use
-a different mechanic entirely: the safe just clears a mechanical
-socket by the door, and you have to separately find a scattered relic
-(a counterweight, a valve, a loose pin) and physically carry it over to
-fit into that socket. Your inventory carries over between rooms
-regardless of which mechanic you're solving.
+Cracking the safe isn't the last step, either, and every room in a
+theme uses a *different* kind of last step — no theme repeats the same
+one twice: **a nested lockbox** (the safe reveals a small key that
+only fits a separate box elsewhere in the room, and the *actual* door
+key is hidden inside that); **a find-and-place relic** (the safe just
+clears a mechanical socket by the door, and you have to separately find
+a scattered relic — a counterweight, a valve, a loose pin — and
+physically carry it over to fit into that socket); or **a switch
+sequence** (the safe powers up a bank of colored switches by the door,
+and a clue plaque right next to them spells out the order to press
+them in — get it wrong and the sequence resets). Your inventory
+carries over between rooms regardless of which mechanic you're
+solving.
 
 Every playthrough reshuffles all of it — which tool/fuse/relic variant
 shows up in which room, where each is hidden, and every code — so
@@ -142,19 +146,22 @@ already binds to `process.env.PORT`.
   than always returning the same fixed line.
 - `lib/roomPlan.js` — generates the randomized per-playthrough layout:
   which tool/fuse/relic variant lands in which room, which of several
-  possible spots hides each one, each room's `mechanic` (`"lockbox"` or
-  `"socket"` — which kind of final unlock that room uses), every room's
-  code, and the relay fragment each non-final room logs for the next one
-  (a daisy chain the whole length of the game, not just a first-to-last
-  shortcut). Called once by whoever starts the game — a solo player, or
-  the host in multiplayer — and the exact same plan is sent to anyone
+  possible spots hides each one, each room's `mechanic` (`"lockbox"`,
+  `"socket"`, or `"sequence"` — cycled by room index so a theme's 3
+  rooms never repeat the same final-unlock kind — plus, for a sequence
+  room, the actual press order), every room's code, and the relay
+  fragment each non-final room logs for the next one (a daisy chain the
+  whole length of the game, not just a first-to-last shortcut). Called
+  once by whoever starts the game — a solo player, or the host in
+  multiplayer — and the exact same plan is sent to anyone
   who joins, so everyone in a session sees an identical world; starting
   a new game reshuffles everything.
 - `lib/themes.js` — the four theme definitions: textures, colors, prop
   labels, note/plaque text, `toolVariants`/`fuseVariants`/`relic.variants`
   (which pry-bar-equivalent, fuse-equivalent, and relic-equivalent items
-  can show up), `smallKey`/`lockbox` labels for the nested-unlock rooms
-  and `relic`'s `socketLabel`/toast text for the find-and-place rooms,
+  can show up), `smallKey`/`lockbox` labels for the nested-unlock rooms,
+  `relic`'s `socketLabel`/toast text for the find-and-place rooms, and
+  `sequence`'s label/clue title/toast text for the switch-order rooms,
   `stageLabels`, a `lampPosition` for the practical light prop, a `decor`
   list (crates/barrels/wall tools/chains) for set dressing, and an
   `ambiance` flag (shake, headlamp, alarm, torches) the engine uses for
